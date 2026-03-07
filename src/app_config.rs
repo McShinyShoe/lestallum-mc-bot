@@ -14,6 +14,7 @@ pub struct AppConfig {
     pub server_port: String,
     pub mc_version: String,
     pub rust_log: Option<String>,
+    pub sudo_player: Option<String>,
 }
 
 impl AppConfig {

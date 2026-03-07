@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use azalea::{chat::ChatPacket, prelude::*};
 
-use crate::app_state::State;
+use crate::{app_config::config, app_state::State};
 
 fn parse_list(message: &String) -> HashSet<String> {
     message
@@ -54,17 +54,20 @@ pub async fn handle_chat(bot: &Client, state: &State, chat: ChatPacket) -> anyho
     let message = chat.message().to_string();
     println!("[CHAT] {}", message_ansi);
 
-    if message.starts_with("✉ [MSG]") && message.contains("McShinyShoe →") {
-        let after_arrow = message.split_once("→ ").unwrap().1;
-        let msg = after_arrow.split_once(' ').unwrap().1;
-
-        if msg.contains("{}") {
-            for (_uuid, info) in bot.tab_list() {
-                let msg = msg.replace("{}", info.profile.name.as_str());
+    let sudo_player = &config().sudo_player;
+    if let Some(player) = sudo_player {
+        if message.starts_with("✉ [MSG]") && message.contains(format!("{} →", player).as_str()) {
+            let after_arrow = message.split_once("→ ").unwrap().1;
+            let msg = after_arrow.split_once(' ').unwrap().1;
+    
+            if msg.contains("{}") {
+                for (_uuid, info) in bot.tab_list() {
+                    let msg = msg.replace("{}", info.profile.name.as_str());
+                    bot.chat(msg);
+                }
+            } else {
                 bot.chat(msg);
             }
-        } else {
-            bot.chat(msg);
         }
     }
 
