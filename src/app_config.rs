@@ -1,5 +1,11 @@
+use std::sync::LazyLock;
+
 use config::{Config, Environment};
 use serde::Deserialize;
+
+static CONFIG: LazyLock<AppConfig> = LazyLock::new(|| {
+    AppConfig::new().expect("Failed to load config")
+});
 
 #[derive(Debug, Deserialize)]
 pub struct AppConfig {
@@ -20,4 +26,8 @@ impl AppConfig {
 
         Ok(cfg.try_deserialize()?)
     }
+}
+
+pub fn config() -> &'static AppConfig  {
+    &*CONFIG
 }
