@@ -1,4 +1,5 @@
 use std::format;
+use std::path::PathBuf;
 
 mod app_config;
 mod app_state;
@@ -21,8 +22,18 @@ async fn main() -> anyhow::Result<()> {
     let email = &config().email;
     let mc_version = &config().mc_version;
 
-    let account = Account::microsoft(&email);
-    let account = account.await?;
+    let cache_file = PathBuf::from(config().auth_cache_file.as_deref().unwrap_or("info").to_string());
+    azalea_auth::auth(
+        &email,
+        azalea_auth::AuthOpts {
+            cache_file: Some(cache_file),
+            ..Default::default()
+        },
+    )
+    .await
+    .unwrap();
+
+    let account = Account::microsoft(&email).await?;
     ClientBuilder::new()
         .add_plugins(ViaVersionPlugin::start(mc_version).await)
         .set_handler(handle_event)
