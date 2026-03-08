@@ -5,7 +5,7 @@ use azalea::{
     protocol::packets::{game::ClientboundGamePacket},
 };
 
-use crate::app_state::State;
+use crate::bot::app_state::State;
 
 pub async fn handle_packet(
     bot: &Client,

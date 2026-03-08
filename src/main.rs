@@ -2,17 +2,15 @@ use std::format;
 use std::path::PathBuf;
 
 mod app_config;
-mod app_state;
-mod handle_event;
+mod bot;
 
 use azalea::prelude::*;
 use azalea_viaversion::ViaVersionPlugin;
 
-mod events;
 mod logging;
 
 use crate::app_config::{config};
-use crate::handle_event::handle_event;
+use crate::bot::handle_event::handle_event;
 use crate::logging::init_tracing;
 
 #[tokio::main]

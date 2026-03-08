@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use azalea::{chat::ChatPacket, prelude::*};
 
-use crate::{app_config::config, app_state::State};
+use crate::{app_config::config, bot::app_state::State};
 
 fn parse_list(message: &String) -> HashSet<String> {
     message
