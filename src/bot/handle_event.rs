@@ -1,7 +1,7 @@
 use azalea::prelude::*;
 
 use crate::bot::{
-    app_state::State,
+    bot_state::State,
     events::{chat::handle_chat, death::handle_death, packet::handle_packet, spawn::handle_spawn},
 };
 
