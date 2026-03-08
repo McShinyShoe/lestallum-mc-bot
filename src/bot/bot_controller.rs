@@ -1,4 +1,6 @@
+use azalea::auto_respawn;
 use azalea_viaversion::ViaVersionPlugin;
+use std::collections::VecDeque;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -7,7 +9,7 @@ use tokio::sync::watch;
 use tokio::task::JoinHandle;
 
 use crate::app_config::config;
-use crate::bot::handle_event::handle_event;
+use crate::bot::{handle_event::handle_event, activity::Activity};
 use crate::mojang::change_skin;
 
 use std::thread;
@@ -17,6 +19,9 @@ use tokio::task::LocalSet;
 pub struct BotController {
     pub bot_task: Mutex<Option<std::thread::JoinHandle<anyhow::Result<()>>>>,
     pub shutdown_tx: Mutex<Option<watch::Sender<bool>>>,
+    pub activity_list: Arc<VecDeque<Activity>>,
+    pub startup_commands: Arc<Vec<String>>,
+    pub auto_respawn: Arc<Option<String>>,
 }
 
 use azalea::prelude::*;
@@ -26,7 +31,25 @@ impl BotController {
         Self {
             bot_task: Mutex::new(None),
             shutdown_tx: Mutex::new(None),
+            activity_list: Arc::new(VecDeque::new()),
+            startup_commands: Arc::new(Vec::new()),
+            auto_respawn: Arc::new(None),
         }
+    }
+
+    pub fn with_activity(mut self, activity_list: VecDeque<Activity>) -> Self {
+        self.activity_list = Arc::new(activity_list);
+        self
+    }
+
+    pub fn with_startup_commands(mut self, startup_commands: Vec<String>) -> Self {
+        self.startup_commands = Arc::new(startup_commands);
+        self
+    }
+
+    pub fn with_auto_respawn(mut self, auto_respawn: String) -> Self {
+        self.auto_respawn = Arc::new(Some(auto_respawn));
+        self
     }
 
     pub async fn start(&self) -> anyhow::Result<()> {
