@@ -3,15 +3,16 @@ use std::path::PathBuf;
 
 mod app_config;
 mod bot;
+mod logging;
+mod mojang;
 
 use azalea::prelude::*;
 use azalea_viaversion::ViaVersionPlugin;
 
-mod logging;
-
-use crate::app_config::{config};
+use crate::app_config::config;
 use crate::bot::handle_event::handle_event;
 use crate::logging::init_tracing;
+use crate::mojang::change_skin;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -20,7 +21,13 @@ async fn main() -> anyhow::Result<()> {
     let email = &config().email;
     let mc_version = &config().mc_version;
 
-    let cache_file = PathBuf::from(config().auth_cache_file.as_deref().unwrap_or("info").to_string());
+    let cache_file = PathBuf::from(
+        config()
+            .auth_cache_file
+            .as_deref()
+            .unwrap_or("info")
+            .to_string(),
+    );
     azalea_auth::auth(
         &email,
         azalea_auth::AuthOpts {
@@ -32,6 +39,11 @@ async fn main() -> anyhow::Result<()> {
     .unwrap();
 
     let account = Account::microsoft(&email).await?;
+
+    if let Some(token) = account.access_token() {
+        change_skin(&token, "./me.png").await?;
+    }
+
     ClientBuilder::new()
         .add_plugins(ViaVersionPlugin::start(mc_version).await)
         .set_handler(handle_event)
