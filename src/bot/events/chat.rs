@@ -1,8 +1,12 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, time::Duration};
 
 use azalea::{chat::ChatPacket, prelude::*};
+use tokio::time::sleep;
 
-use crate::{app_config::config, bot::bot_state::State};
+use crate::{
+    app_config::config,
+    bot::{activity::Activity, bot_state::State},
+};
 
 fn parse_list(message: &str) -> anyhow::Result<HashSet<String>> {
     Ok(message
@@ -94,15 +98,37 @@ pub async fn handle_chat(bot: &Client, state: &State, chat: ChatPacket) -> anyho
     }
 
     if message.contains("[+] Lestallum") {
+        tracing::info!("Bot joined towny!");
         {
             *state.on_towny.lock().await = true;
         }
-        tracing::info!("Bot joinde towny!");
-        bot.chat("/pvp on");
-        bot.chat("/t");
-        bot.chat("/t reslist");
-        bot.chat("/t ranklist");
-        bot.chat("/msg Lestallum INIT_END");
+        {
+            let commands = state.startup_commands.lock().await;
+            for cmd in commands.iter() {
+                bot.chat(cmd);
+            }
+        }
+        loop {
+            let mut activities = state.activity_list.lock().await;
+            while let Some(activity) = activities.pop_front() {
+                match activity {
+                    Activity::Exit => {
+                        sleep(Duration::from_millis(500)).await;
+                        bot.disconnect();
+                        return Ok(());
+                    }
+
+                    Activity::MailSend { to, message } => {
+                        // handle mail send
+                    }
+
+                    Activity::Say { message } => {
+                        bot.chat(&message);
+                    }
+                }
+            }
+            sleep(Duration::from_millis(100)).await;
+        }
     }
 
     if message.starts_with("Residents") {

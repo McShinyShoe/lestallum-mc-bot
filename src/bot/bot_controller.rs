@@ -9,7 +9,8 @@ use tokio::sync::watch;
 use tokio::task::JoinHandle;
 
 use crate::app_config::config;
-use crate::bot::{handle_event::handle_event, activity::Activity};
+use crate::bot::bot_state::State;
+use crate::bot::{activity::Activity, handle_event::handle_event};
 use crate::mojang::change_skin;
 
 use std::thread;
@@ -19,9 +20,9 @@ use tokio::task::LocalSet;
 pub struct BotController {
     pub bot_task: Mutex<Option<std::thread::JoinHandle<anyhow::Result<()>>>>,
     pub shutdown_tx: Mutex<Option<watch::Sender<bool>>>,
-    pub activity_list: Arc<Mutex<VecDeque<Activity>>>,
-    pub startup_commands: Arc<Mutex<Vec<String>>>,
-    pub auto_respawn: Arc<Mutex<Option<String>>>,
+    pub activity_list: Arc<tokio::sync::Mutex<VecDeque<Activity>>>,
+    pub startup_commands: Arc<tokio::sync::Mutex<Vec<String>>>,
+    pub auto_respawn: Arc<tokio::sync::Mutex<Option<String>>>,
 }
 
 use azalea::prelude::*;
@@ -31,24 +32,24 @@ impl BotController {
         Self {
             bot_task: Mutex::new(None),
             shutdown_tx: Mutex::new(None),
-            activity_list: Arc::new(Mutex::new(VecDeque::new())),
-            startup_commands: Arc::new(Mutex::new(Vec::new())),
-            auto_respawn: Arc::new(Mutex::new(None)),
+            activity_list: Arc::new(tokio::sync::Mutex::new(VecDeque::new())),
+            startup_commands: Arc::new(tokio::sync::Mutex::new(Vec::new())),
+            auto_respawn: Arc::new(tokio::sync::Mutex::new(None)),
         }
     }
 
     pub fn with_activity(mut self, activity_list: VecDeque<Activity>) -> Self {
-        self.activity_list = Arc::new(Mutex::new(activity_list));
+        self.activity_list = Arc::new(tokio::sync::Mutex::new(activity_list));
         self
     }
 
     pub fn with_startup_commands(mut self, startup_commands: Vec<String>) -> Self {
-        self.startup_commands = Arc::new(Mutex::new(startup_commands));
+        self.startup_commands = Arc::new(tokio::sync::Mutex::new(startup_commands));
         self
     }
 
     pub fn with_auto_respawn(mut self, auto_respawn: String) -> Self {
-        self.auto_respawn = Arc::new(Mutex::new(Some(auto_respawn)));
+        self.auto_respawn = Arc::new(tokio::sync::Mutex::new(Some(auto_respawn)));
         self
     }
 
@@ -64,6 +65,10 @@ impl BotController {
         let (tx, mut rx) = tokio::sync::watch::channel(false);
         *self.shutdown_tx.lock().unwrap() = Some(tx);
 
+        let activity_list = self.activity_list.clone();
+        let startup_commands = self.startup_commands.clone();
+        let auto_respawn = self.auto_respawn.clone();
+
         let handle = thread::spawn(move || -> anyhow::Result<()> {
             let runtime = Builder::new_current_thread().enable_all().build()?;
 
@@ -71,7 +76,7 @@ impl BotController {
 
             runtime.block_on(local.run_until(async move {
                 tokio::select! {
-                    res = run_bot() => res,
+                    res = run_bot(activity_list, startup_commands, auto_respawn) => res,
                     _ = rx.changed() => {
                         tracing::info!("Shutdown signal received");
                         Ok(())
@@ -96,7 +101,11 @@ impl BotController {
     }
 }
 
-async fn run_bot() -> anyhow::Result<()> {
+async fn run_bot(
+    activity_list: Arc<tokio::sync::Mutex<VecDeque<Activity>>>,
+    startup_commands: Arc<tokio::sync::Mutex<Vec<String>>>,
+    auto_respawn: Arc<tokio::sync::Mutex<Option<String>>>,
+) -> anyhow::Result<()> {
     tracing::info!("Initializing bot...");
     let cfg = config();
 
@@ -117,11 +126,20 @@ async fn run_bot() -> anyhow::Result<()> {
         change_skin(&token, "./me.png").await?;
     }
 
+    let state = State {
+        activity_list: activity_list,
+        startup_commands: startup_commands,
+        auto_respawn: auto_respawn,
+        ..Default::default()
+    };
+
     tracing::info!("Initializing complete...");
 
     ClientBuilder::new()
         .add_plugins(ViaVersionPlugin::start(&cfg.mc_version).await)
         .set_handler(handle_event)
+        .set_state(state.clone())
+        .reconnect_after(None)
         .start(account, format!("{}:{}", cfg.server_uri, cfg.server_port))
         .await;
 
