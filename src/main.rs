@@ -1,3 +1,4 @@
+#![allow(unused)]
 use std::format;
 use std::path::PathBuf;
 
