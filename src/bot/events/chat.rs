@@ -76,7 +76,7 @@ async fn clean_resident_name(name: &str, state: &State) -> anyhow::Result<String
 pub async fn handle_chat(bot: &Client, state: &State, chat: ChatPacket) -> anyhow::Result<()> {
     let message_ansi = chat.message().to_ansi();
     let message = chat.message().to_string();
-    println!("[CHAT] {}", message_ansi);
+    tracing::info!("[CHAT] {}", message_ansi);
 
     if message.starts_with("✉ [MSG]") {
         let content = message
@@ -97,7 +97,7 @@ pub async fn handle_chat(bot: &Client, state: &State, chat: ChatPacket) -> anyho
         {
             *state.on_towny.lock().await = true;
         }
-        println!("[LOG] Bot joined Towny!");
+        tracing::info!("Bot joinde towny!");
         bot.chat("/pvp on");
         bot.chat("/t");
         bot.chat("/t reslist");
