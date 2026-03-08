@@ -54,21 +54,13 @@ pub async fn handle_chat(bot: &Client, state: &State, chat: ChatPacket) -> anyho
     let message = chat.message().to_string();
     println!("[CHAT] {}", message_ansi);
 
-    let sudo_player = &config().sudo_player;
-    if let Some(player) = sudo_player {
-        if message.starts_with("✉ [MSG]") && message.contains(format!("{} →", player).as_str()) {
-            let after_arrow = message.split_once("→ ").unwrap().1;
-            let msg = after_arrow.split_once(' ').unwrap().1;
-    
-            if msg.contains("{}") {
-                for (_uuid, info) in bot.tab_list() {
-                    let msg = msg.replace("{}", info.profile.name.as_str());
-                    bot.chat(msg);
-                }
-            } else {
-                bot.chat(msg);
-            }
-        }
+    if message.starts_with("✉ [MSG]") {
+        let content = message.strip_prefix("✉ [MSG] ").ok_or_else(|| anyhow::anyhow!("Invalid DM format: missing prefix"))?;
+
+        let (from, rest) = content.split_once(" → ").ok_or_else(|| anyhow::anyhow!("Invalid DM format: missing arrow"))?;
+        let (to, msg) = rest.split_once(' ').ok_or_else(|| anyhow::anyhow!("Invalid DM format: missing message"))?;
+
+        on_message_dm(&bot, &state, from, to, msg)?;
     }
 
     if message.contains("[+] Lestallum") {
@@ -125,5 +117,27 @@ pub async fn handle_chat(bot: &Client, state: &State, chat: ChatPacket) -> anyho
         let parsed = parse_list(&message);
         state.town_trusteds.lock().await.extend(parsed);
     }
+    Ok(())
+}
+
+fn on_message_dm(bot: &Client, state: &State, from: &str, to: &str, msg: &str) -> anyhow::Result<()> {
+    tracing::info!("Got message from {} to {}: {}", from, to, msg);
+    let sudo_player = &config().sudo_player;
+    if let Some(player) = sudo_player {
+        if from == player
+        {
+            if msg.contains("{}") {
+                for (_uuid, info) in bot.tab_list() {
+                    let msg = msg.replace("{}", info.profile.name.as_str());
+                    bot.chat(msg);
+                }
+            } else {
+                bot.chat(msg);
+            }
+        }
+        return Ok(())
+    }
+
+    bot.chat(format!("/msg {} Hi! this is a bot, and your message goes to nowhere ...", from));
     Ok(())
 }
