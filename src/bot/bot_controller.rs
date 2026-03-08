@@ -19,9 +19,9 @@ use tokio::task::LocalSet;
 pub struct BotController {
     pub bot_task: Mutex<Option<std::thread::JoinHandle<anyhow::Result<()>>>>,
     pub shutdown_tx: Mutex<Option<watch::Sender<bool>>>,
-    pub activity_list: Arc<VecDeque<Activity>>,
-    pub startup_commands: Arc<Vec<String>>,
-    pub auto_respawn: Arc<Option<String>>,
+    pub activity_list: Arc<Mutex<VecDeque<Activity>>>,
+    pub startup_commands: Arc<Mutex<Vec<String>>>,
+    pub auto_respawn: Arc<Mutex<Option<String>>>,
 }
 
 use azalea::prelude::*;
@@ -31,24 +31,24 @@ impl BotController {
         Self {
             bot_task: Mutex::new(None),
             shutdown_tx: Mutex::new(None),
-            activity_list: Arc::new(VecDeque::new()),
-            startup_commands: Arc::new(Vec::new()),
-            auto_respawn: Arc::new(None),
+            activity_list: Arc::new(Mutex::new(VecDeque::new())),
+            startup_commands: Arc::new(Mutex::new(Vec::new())),
+            auto_respawn: Arc::new(Mutex::new(None)),
         }
     }
 
     pub fn with_activity(mut self, activity_list: VecDeque<Activity>) -> Self {
-        self.activity_list = Arc::new(activity_list);
+        self.activity_list = Arc::new(Mutex::new(activity_list));
         self
     }
 
     pub fn with_startup_commands(mut self, startup_commands: Vec<String>) -> Self {
-        self.startup_commands = Arc::new(startup_commands);
+        self.startup_commands = Arc::new(Mutex::new(startup_commands));
         self
     }
 
     pub fn with_auto_respawn(mut self, auto_respawn: String) -> Self {
-        self.auto_respawn = Arc::new(Some(auto_respawn));
+        self.auto_respawn = Arc::new(Mutex::new(Some(auto_respawn)));
         self
     }
 
