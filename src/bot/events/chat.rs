@@ -78,7 +78,7 @@ async fn clean_resident_name(name: &str, state: &State) -> anyhow::Result<String
 }
 
 pub async fn handle_chat(bot: &Client, state: &State, chat: ChatPacket) -> anyhow::Result<()> {
-    let message_ansi = chat.message().to_ansi();
+    let message_ansi = chat.message().to_string();
     let message = chat.message().to_string();
     tracing::info!("[CHAT] {}", message_ansi);
 
