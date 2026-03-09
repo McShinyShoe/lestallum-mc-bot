@@ -93,13 +93,10 @@ impl BotController {
 
         let handle = thread::spawn(move || -> anyhow::Result<()> {
             let runtime = Builder::new_current_thread().enable_all().build()?;
-
             let local = LocalSet::new();
 
-            runtime.block_on(local.run_until(async move {
-                run_bot(shared_state);
-                Ok(())
-            }))
+            runtime.block_on(local.run_until(run_bot(shared_state)))?;
+            Ok(())
         });
         *task = Some(handle);
         tracing::info!("Bot started.");
