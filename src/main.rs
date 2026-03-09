@@ -36,18 +36,8 @@ async fn main() -> anyhow::Result<()> {
         .await
         .with_auto_respawn("/pw head".to_string())
         .await;
-
     bot.start().await?;
-    sleep(Duration::from_secs(90)).await;
-    bot.stop().await?;
-    let bot = bot
-        .with_startup_commands(vec![
-            "/tc Startup Commands 2".to_string(),
-            "/pvp on".to_string(),
-        ])
-        .await;
-    bot.start().await?;
-    sleep(Duration::from_secs(90)).await;
-    bot.stop().await?;
+    bot.join().await?;
+    tracing::info!("Bot ended");
     Ok(())
 }

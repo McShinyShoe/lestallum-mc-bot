@@ -5,8 +5,10 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Duration;
 use tokio::sync::watch;
 use tokio::task::JoinHandle;
+use tokio::time::sleep;
 
 use crate::app_config::config;
 use crate::bot::bot_state::State;
@@ -111,11 +113,27 @@ impl BotController {
         tracing::info!("Bot started.");
         Ok(())
     }
+    pub async fn join(&self) -> anyhow::Result<()> {
+        let mut task = self.bot_task.lock().unwrap();
+
+        if task.is_none() {
+            tracing::info!("Bot already ended");
+            return Ok(());
+        }
+
+        if let Some(handle) = task.take() {
+            handle.join().unwrap()?;
+        }
+
+        Ok(())
+    }
+
     pub async fn stop(&self) -> anyhow::Result<()> {
         if let Some(tx) = self.shutdown_tx.lock().unwrap().take() {
             let _ = tx.send(true);
         }
 
+        let task = self.bot_task.lock().unwrap();
         if let Some(handle) = self.bot_task.lock().unwrap().take() {
             handle.join().unwrap()?;
         }
