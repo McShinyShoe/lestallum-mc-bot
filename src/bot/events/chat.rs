@@ -102,15 +102,16 @@ pub async fn handle_chat(bot: &Client, state: &State, chat: ChatPacket) -> anyho
         {
             *state.on_towny.lock().await = true;
         }
+        let e = bot.clone();
         {
-            let commands = state.startup_commands.lock().await;
-            for cmd in commands.iter() {
+            let state = state.shared_state.lock().await;
+            for cmd in state.startup_commands.iter() {
                 bot.chat(cmd);
             }
         }
         loop {
-            let mut activities = state.activity_list.lock().await;
-            while let Some(activity) = activities.pop_front() {
+            let mut state = state.shared_state.lock().await;
+            while let Some(activity) = state.activity_list.pop_front() {
                 match activity {
                     Activity::Exit => {
                         sleep(Duration::from_millis(500)).await;

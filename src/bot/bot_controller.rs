@@ -20,37 +20,62 @@ use tokio::task::LocalSet;
 pub struct BotController {
     pub bot_task: Mutex<Option<std::thread::JoinHandle<anyhow::Result<()>>>>,
     pub shutdown_tx: Mutex<Option<watch::Sender<bool>>>,
-    pub activity_list: Arc<tokio::sync::Mutex<VecDeque<Activity>>>,
-    pub startup_commands: Arc<tokio::sync::Mutex<Vec<String>>>,
-    pub auto_respawn: Arc<tokio::sync::Mutex<Option<String>>>,
+    pub shared_state: Arc<tokio::sync::Mutex<SharedState>>,
+}
+
+#[derive(Default)]
+pub struct SharedState {
+    pub activity_list: VecDeque<Activity>,
+    pub startup_commands: Vec<String>,
+    pub auto_respawn: Option<String>,
+}
+
+impl SharedState {
+    pub fn new() -> Self {
+        Self {
+            activity_list: VecDeque::new(),
+            startup_commands: Vec::new(),
+            auto_respawn: None,
+        }
+    }
+
+    pub fn set_activity(&mut self, activity_list: VecDeque<Activity>) {
+        self.activity_list = activity_list;
+    }
+
+    pub fn set_startup_commands(&mut self, startup_commands: Vec<String>) {
+        self.startup_commands = startup_commands;
+    }
+
+    pub fn set_auto_respawn(&mut self, auto_respawn: String) {
+        self.auto_respawn = Some(auto_respawn);
+    }
+
+    pub fn with_activity(mut self, activity_list: VecDeque<Activity>) -> Self {
+        self.set_activity(activity_list);
+        self
+    }
+
+    pub fn with_startup_commands(mut self, startup_commands: Vec<String>) -> Self {
+        self.set_startup_commands(startup_commands);
+        self
+    }
+
+    pub fn with_auto_respawn(mut self, auto_respawn: String) -> Self {
+        self.set_auto_respawn(auto_respawn);
+        self
+    }
 }
 
 use azalea::prelude::*;
 
 impl BotController {
-    pub fn new() -> Self {
+    pub fn new(shared_state: SharedState) -> Self {
         Self {
             bot_task: Mutex::new(None),
             shutdown_tx: Mutex::new(None),
-            activity_list: Arc::new(tokio::sync::Mutex::new(VecDeque::new())),
-            startup_commands: Arc::new(tokio::sync::Mutex::new(Vec::new())),
-            auto_respawn: Arc::new(tokio::sync::Mutex::new(None)),
+            shared_state: Arc::new(tokio::sync::Mutex::new(shared_state)),
         }
-    }
-
-    pub fn with_activity(mut self, activity_list: VecDeque<Activity>) -> Self {
-        self.activity_list = Arc::new(tokio::sync::Mutex::new(activity_list));
-        self
-    }
-
-    pub fn with_startup_commands(mut self, startup_commands: Vec<String>) -> Self {
-        self.startup_commands = Arc::new(tokio::sync::Mutex::new(startup_commands));
-        self
-    }
-
-    pub fn with_auto_respawn(mut self, auto_respawn: String) -> Self {
-        self.auto_respawn = Arc::new(tokio::sync::Mutex::new(Some(auto_respawn)));
-        self
     }
 
     pub async fn start(&self) -> anyhow::Result<()> {
@@ -65,9 +90,7 @@ impl BotController {
         let (tx, mut rx) = tokio::sync::watch::channel(false);
         *self.shutdown_tx.lock().unwrap() = Some(tx);
 
-        let activity_list = self.activity_list.clone();
-        let startup_commands = self.startup_commands.clone();
-        let auto_respawn = self.auto_respawn.clone();
+        let shared_state = self.shared_state.clone();
 
         let handle = thread::spawn(move || -> anyhow::Result<()> {
             let runtime = Builder::new_current_thread().enable_all().build()?;
@@ -76,7 +99,7 @@ impl BotController {
 
             runtime.block_on(local.run_until(async move {
                 tokio::select! {
-                    res = run_bot(activity_list, startup_commands, auto_respawn) => res,
+                    res = run_bot(shared_state) => res,
                     _ = rx.changed() => {
                         tracing::info!("Shutdown signal received");
                         Ok(())
@@ -99,13 +122,33 @@ impl BotController {
 
         Ok(())
     }
+
+    pub async fn with_activity(mut self, activity_list: VecDeque<Activity>) -> Self {
+        {
+            let mut state = self.shared_state.lock().await;
+            state.set_activity(activity_list);
+        }
+        self
+    }
+
+    pub async fn with_startup_commands(mut self, startup_commands: Vec<String>) -> Self {
+        {
+            let mut state = self.shared_state.lock().await;
+            state.set_startup_commands(startup_commands);
+        }
+        self
+    }
+
+    pub async fn with_auto_respawn(mut self, auto_respawn: String) -> Self {
+        {
+            let mut state = self.shared_state.lock().await;
+            state.set_auto_respawn(auto_respawn);
+        }
+        self
+    }
 }
 
-async fn run_bot(
-    activity_list: Arc<tokio::sync::Mutex<VecDeque<Activity>>>,
-    startup_commands: Arc<tokio::sync::Mutex<Vec<String>>>,
-    auto_respawn: Arc<tokio::sync::Mutex<Option<String>>>,
-) -> anyhow::Result<()> {
+async fn run_bot(shared_state: Arc<tokio::sync::Mutex<SharedState>>) -> anyhow::Result<()> {
     tracing::info!("Initializing bot...");
     let cfg = config();
 
@@ -127,9 +170,7 @@ async fn run_bot(
     }
 
     let state = State {
-        activity_list: activity_list,
-        startup_commands: startup_commands,
-        auto_respawn: auto_respawn,
+        shared_state: shared_state,
         ..Default::default()
     };
 
