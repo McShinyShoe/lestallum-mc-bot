@@ -1,9 +1,6 @@
 use std::sync::Arc;
 
-use azalea::{
-    prelude::*,
-    protocol::packets::{game::ClientboundGamePacket},
-};
+use azalea::{prelude::*, protocol::packets::game::ClientboundGamePacket};
 
 use crate::bot::bot_state::State;
 

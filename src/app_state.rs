@@ -1,5 +1,8 @@
 use std::{collections::HashMap, sync::Arc};
-use tokio::{sync::{Mutex, RwLock}, task::JoinHandle};
+use tokio::{
+    sync::{Mutex, RwLock},
+    task::JoinHandle,
+};
 
 use crate::{api::claims::Claims, bot::bot_controller::BotController};
 

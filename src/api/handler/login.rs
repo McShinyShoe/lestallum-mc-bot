@@ -4,7 +4,12 @@ use jsonwebtoken::{EncodingKey, Header, encode};
 use serde::Deserialize;
 use serde_json::json;
 
-use crate::{api::api_response::{ApiResponse, ResultApiResponse}, app_state::AppStateStore, api::claims::Claims, app_config::config};
+use crate::{
+    api::api_response::{ApiResponse, ResultApiResponse},
+    api::claims::Claims,
+    app_config::config,
+    app_state::AppStateStore,
+};
 
 #[derive(Deserialize)]
 pub struct LoginInput {
@@ -19,7 +24,13 @@ pub async fn login_handler(
     let username = &config().username;
     let password = &config().password;
     if body.username != *username || body.password != *password {
-        return Err((StatusCode::UNAUTHORIZED, Json(ApiResponse::error("Wrong username or password.", StatusCode::UNAUTHORIZED.as_u16()))));
+        return Err((
+            StatusCode::UNAUTHORIZED,
+            Json(ApiResponse::error(
+                "Wrong username or password.",
+                StatusCode::UNAUTHORIZED.as_u16(),
+            )),
+        ));
     }
 
     let expiration = (Utc::now() + Duration::hours(24)).timestamp() as usize;

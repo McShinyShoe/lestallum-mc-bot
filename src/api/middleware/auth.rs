@@ -3,13 +3,17 @@ use axum::{
     body::Body,
     extract::State,
     http::{Request, StatusCode},
-    middleware::Next, response::IntoResponse,
+    middleware::Next,
+    response::IntoResponse,
 };
 
 // use crate::{api_response::ApiResponse, app_state::AppStateStore, claims::Claims};
 use jsonwebtoken::{DecodingKey, Validation, decode};
 
-use crate::{api::{api_response::ApiResponse, claims::Claims}, app_state::AppStateStore};
+use crate::{
+    api::{api_response::ApiResponse, claims::Claims},
+    app_state::AppStateStore,
+};
 
 pub async fn auth_middleware(
     State(state): State<AppStateStore>,
