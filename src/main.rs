@@ -37,7 +37,8 @@ async fn main() -> anyhow::Result<()> {
         .with_auto_respawn("/pw head".to_string())
         .await;
     bot.start().await?;
-    bot.join().await?;
+    sleep(Duration::from_secs(30)).await;
+    bot.stop().await?;
     tracing::info!("Bot ended");
     Ok(())
 }

@@ -21,12 +21,12 @@ use tokio::task::LocalSet;
 
 pub struct BotController {
     pub bot_task: Mutex<Option<std::thread::JoinHandle<anyhow::Result<()>>>>,
-    pub shutdown_tx: Mutex<Option<watch::Sender<bool>>>,
     pub shared_state: Arc<tokio::sync::Mutex<SharedState>>,
 }
 
 #[derive(Default)]
 pub struct SharedState {
+    pub shutdown_signal: bool,
     pub activity_list: VecDeque<Activity>,
     pub startup_commands: Vec<String>,
     pub auto_respawn: Option<String>,
@@ -35,6 +35,7 @@ pub struct SharedState {
 impl SharedState {
     pub fn new() -> Self {
         Self {
+            shutdown_signal: false,
             activity_list: VecDeque::new(),
             startup_commands: Vec::new(),
             auto_respawn: None,
@@ -75,7 +76,6 @@ impl BotController {
     pub fn new(shared_state: SharedState) -> Self {
         Self {
             bot_task: Mutex::new(None),
-            shutdown_tx: Mutex::new(None),
             shared_state: Arc::new(tokio::sync::Mutex::new(shared_state)),
         }
     }
@@ -89,9 +89,6 @@ impl BotController {
             return Ok(());
         }
 
-        let (tx, mut rx) = tokio::sync::watch::channel(false);
-        *self.shutdown_tx.lock().unwrap() = Some(tx);
-
         let shared_state = self.shared_state.clone();
 
         let handle = thread::spawn(move || -> anyhow::Result<()> {
@@ -100,13 +97,8 @@ impl BotController {
             let local = LocalSet::new();
 
             runtime.block_on(local.run_until(async move {
-                tokio::select! {
-                    res = run_bot(shared_state) => res,
-                    _ = rx.changed() => {
-                        tracing::info!("Shutdown signal received");
-                        Ok(())
-                    }
-                }
+                run_bot(shared_state);
+                Ok(())
             }))
         });
         *task = Some(handle);
@@ -129,14 +121,11 @@ impl BotController {
     }
 
     pub async fn stop(&self) -> anyhow::Result<()> {
-        if let Some(tx) = self.shutdown_tx.lock().unwrap().take() {
-            let _ = tx.send(true);
+        {
+            let mut a = self.shared_state.lock().await;
+            a.shutdown_signal = true;
         }
-
-        let task = self.bot_task.lock().unwrap();
-        if let Some(handle) = self.bot_task.lock().unwrap().take() {
-            handle.join().unwrap()?;
-        }
+        self.join();
 
         Ok(())
     }

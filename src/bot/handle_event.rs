@@ -1,4 +1,7 @@
+use std::time::Duration;
+
 use azalea::prelude::*;
+use tokio::time::sleep;
 
 use crate::bot::{
     bot_state::State,
@@ -6,6 +9,16 @@ use crate::bot::{
 };
 
 pub async fn handle_event(bot: Client, event: Event, state: State) -> anyhow::Result<()> {
+    {
+        let st = state.shared_state.lock().await;
+        if st.shutdown_signal {
+            tracing::info!("Got shutdown signal!");
+            sleep(Duration::from_millis(500)).await;
+            bot.disconnect();
+            return Ok(());
+        }
+    }
+
     tracing::debug!("Got event {:?}", event);
     match event {
         Event::Spawn => handle_spawn(&bot, &state).await?,
