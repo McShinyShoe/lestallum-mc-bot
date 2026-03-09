@@ -16,6 +16,9 @@ pub struct AppConfig {
     pub rust_log: Option<String>,
     pub sudo_player: Option<String>,
     pub auth_cache_file: Option<String>,
+    pub port: Option<String>,
+    pub username: String,
+    pub password: String,
 }
 
 impl AppConfig {

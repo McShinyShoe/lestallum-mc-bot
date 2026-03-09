@@ -19,12 +19,13 @@ use std::thread;
 use tokio::runtime::Builder;
 use tokio::task::LocalSet;
 
+#[derive(Debug)]
 pub struct BotController {
     pub bot_task: Mutex<Option<std::thread::JoinHandle<anyhow::Result<()>>>>,
     pub shared_state: Arc<tokio::sync::Mutex<SharedState>>,
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct SharedState {
     pub shutdown_signal: bool,
     pub activity_list: VecDeque<Activity>,
