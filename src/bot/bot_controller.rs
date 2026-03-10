@@ -128,6 +128,14 @@ impl BotController {
         Ok(())
     }
 
+    pub async fn add_activity(&self, activity: Activity) -> anyhow::Result<()> {
+        {
+            let mut shared_state = self.shared_state.lock().await;
+            shared_state.activity_list.push_back(activity);
+        }
+        Ok(())
+    }
+
     pub async fn with_activity(mut self, activity_list: VecDeque<Activity>) -> Self {
         {
             let mut state = self.shared_state.lock().await;

@@ -21,6 +21,7 @@ use tokio::net::TcpListener;
 use tokio::sync::RwLock;
 use tokio::time::sleep;
 
+use crate::api::handler::bot::{bot_say_handler, bot_start_handler, bot_stop_handler};
 use crate::api::handler::hello::hello_handler;
 use crate::api::handler::login::login_handler;
 use crate::api::middleware;
@@ -60,6 +61,27 @@ async fn main() -> anyhow::Result<()> {
         .route(
             "/hello",
             get(hello_handler).layer(from_fn_with_state(
+                state.clone(),
+                middleware::auth::auth_middleware,
+            )),
+        )
+        .route(
+            "/bot/start",
+            post(bot_start_handler).layer(from_fn_with_state(
+                state.clone(),
+                middleware::auth::auth_middleware,
+            )),
+        )
+        .route(
+            "/bot/stop",
+            post(bot_stop_handler).layer(from_fn_with_state(
+                state.clone(),
+                middleware::auth::auth_middleware,
+            )),
+        )
+        .route(
+            "/bot/say",
+            post(bot_say_handler).layer(from_fn_with_state(
                 state.clone(),
                 middleware::auth::auth_middleware,
             )),
