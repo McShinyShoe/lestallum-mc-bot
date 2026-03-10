@@ -14,8 +14,9 @@ pub async fn handle_event(bot: Client, event: Event, state: State) -> anyhow::Re
         let mut st_sent = state.shutdown_signal_sent.lock().await;
         if st.shutdown_signal && !*st_sent {
             tracing::info!("Got shutdown signal!");
-            sleep(Duration::from_millis(500)).await;
-            bot.disconnect();
+            bot.wait_ticks(10);
+            bot.exit();
+
             *st_sent = true;
             return Ok(());
         }

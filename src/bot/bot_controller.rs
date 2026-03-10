@@ -123,7 +123,7 @@ impl BotController {
             let mut a = self.shared_state.lock().await;
             a.shutdown_signal = true;
         }
-        self.join();
+        self.join().await?;
 
         Ok(())
     }
