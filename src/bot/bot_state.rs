@@ -20,5 +20,6 @@ pub struct State {
     pub town_vips: Arc<Mutex<HashSet<String>>>,
     pub town_trusteds: Arc<Mutex<HashSet<String>>>,
     pub on_towny: Arc<Mutex<bool>>,
+    pub shutdown_signal_sent: Arc<Mutex<bool>>,
     pub shared_state: Arc<tokio::sync::Mutex<SharedState>>,
 }

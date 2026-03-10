@@ -11,15 +11,16 @@ use crate::bot::{
 pub async fn handle_event(bot: Client, event: Event, state: State) -> anyhow::Result<()> {
     {
         let st = state.shared_state.lock().await;
-        if st.shutdown_signal {
+        let mut st_sent = state.shutdown_signal_sent.lock().await;
+        if st.shutdown_signal && !*st_sent {
             tracing::info!("Got shutdown signal!");
             sleep(Duration::from_millis(500)).await;
             bot.disconnect();
+            *st_sent = true;
             return Ok(());
         }
     }
 
-    tracing::debug!("Got event {:?}", event);
     match event {
         Event::Spawn => handle_spawn(&bot, &state).await?,
         Event::Packet(packet) => handle_packet(&bot, &state, packet).await?,
